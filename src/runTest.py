@@ -4,7 +4,7 @@ import os
 
 
 codePath = "./testsuites"
-codes = ['loguru','marshmallow']
+codes = ['loguru','marshmallow','arrow','tenacity','click','validators','monkeytype','googlemaps','mechanicalsoup']
 resultPath = "./reports"
   
 def main():

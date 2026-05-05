@@ -12,19 +12,29 @@ class HumanTrackEvaluator:
 
     def run_coverage_analysis(self):
         """Runs human tests and captures branch coverage."""
+        if self.report_path and os.path.exists(self.report_path):
+            print(f"Coverage report already exists at {self.report_path}, skipping coverage analysis.")
+            with open(self.report_path) as f:
+                data = json.load(f)
+                self.results['overall_precision'] = data['totals']['percent_covered']
+                self.results['branch_coverage'] = data['totals']['covered_branches']
+            return
         print(f"--- Running Coverage.py on {self.repo_path} ---")
         
         # 1. Run pytest under coverage
         # --branch is critical for your dual-track comparison
+        
+
         cmd = [
             "coverage", "run", "--branch", 
             f"--source={self.source_dir}", 
-            "-m", "pytest", self.repo_path
+            "-m", "pytest", "-c", "/dev/null",
+            self.repo_path
         ]
         subprocess.run(cmd, check=True)
 
         # 2. Export report to JSON for easy parsing
-        subprocess.run(["coverage", "json", "-o", self.report_path], check=True)
+        subprocess.run(["coverage", "json", "-o", self.report_path])
         
         with open(self.report_path) as f:
             data = json.load(f)
