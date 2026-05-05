@@ -17,11 +17,11 @@ def change_dir(destination):
         os.chdir(origin)
 
 class HumanTrackEvaluator:
-    def __init__(self, repo_path, source_dir, report_path=None):
+    def __init__(self, repo_path, source_dir, report_path):
         self.repo_path = repo_path
         self.source_dir = source_dir # e.g., 'loguru/'
         self.results = {}
-        self.report_path = report_path if report_path else f"{self.source_dir}_coverage.json"
+        self.report_path = report_path+"_coverage.json"
 
     def run_coverage_analysis(self):
         """Runs human tests and captures branch coverage with environment isolation."""

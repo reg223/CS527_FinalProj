@@ -15,7 +15,7 @@ import humanTest  # noqa: E402
 import llmTest  # noqa: E402
 
 
-DEFAULT_CODEBASES = ["loguru", "marshmallow"]
+DEFAULT_CODEBASES = ['loguru', 'marshmallow', 'arrow', 'tenacity', 'click', 'validators', 'monkeytype', 'googlemaps', 'mechanicalsoup']
 TESTSUITE_ROOT = "./testsuites"
 REPORT_ROOT = "./reports"
 
