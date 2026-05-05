@@ -1,0 +1,13 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = ["*/humanTest.py"]
+
+[tool.coverage.report]
+fail_under = 0
+show_missing = true

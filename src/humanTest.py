@@ -1,6 +1,8 @@
-import subprocess
 import json
 import os
+import subprocess
+from pathlib import Path
+
 from radon.complexity import cc_visit
 
 class HumanTrackEvaluator:
@@ -13,18 +15,26 @@ class HumanTrackEvaluator:
     def run_coverage_analysis(self):
         """Runs human tests and captures branch coverage."""
         print(f"--- Running Coverage.py on {self.repo_path} ---")
-        
+
+        env = os.environ.copy()
+        src_parent = str(Path(self.source_dir).resolve().parent)
+        env["PYTHONPATH"] = src_parent + os.pathsep + env.get("PYTHONPATH", "")
+
         # 1. Run pytest under coverage
         # --branch is critical for your dual-track comparison
         cmd = [
-            "coverage", "run", "--branch", 
-            f"--source={self.source_dir}", 
-            "-m", "pytest", self.repo_path
+            "coverage",
+            "run",
+            "--branch",
+            f"--source={self.source_dir}",
+            "-m",
+            "pytest",
+            self.repo_path,
         ]
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=env)
 
         # 2. Export report to JSON for easy parsing
-        subprocess.run(["coverage", "json", "-o", self.report_path], check=True)
+        subprocess.run(["coverage", "json", "-o", self.report_path], check=True, env=env)
         
         with open(self.report_path) as f:
             data = json.load(f)

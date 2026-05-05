@@ -1,0 +1,8 @@
+# Core evaluation pipeline
+coverage[toml]>=7.4.0
+pytest>=8.0.0
+pytest-cov>=4.1.0
+radon>=6.0.0
+
+# LLM track (OpenAI-compatible APIs)
+openai>=1.40.0
