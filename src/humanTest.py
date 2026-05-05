@@ -4,10 +4,11 @@ import os
 from radon.complexity import cc_visit
 
 class HumanTrackEvaluator:
-    def __init__(self, repo_path, source_dir):
+    def __init__(self, repo_path, source_dir, report_path=None):
         self.repo_path = repo_path
         self.source_dir = source_dir # e.g., 'loguru/'
         self.results = {}
+        self.report_path = f'{report_path}_coverage.json' if report_path else f"{self.source_dir}_coverage.json"
 
     def run_coverage_analysis(self):
         """Runs human tests and captures branch coverage."""
@@ -23,9 +24,9 @@ class HumanTrackEvaluator:
         subprocess.run(cmd, check=True)
 
         # 2. Export report to JSON for easy parsing
-        subprocess.run(["coverage", "json", "-o", "coverage.json"], check=True)
+        subprocess.run(["coverage", "json", "-o", self.report_path], check=True)
         
-        with open("coverage.json") as f:
+        with open(self.report_path) as f:
             data = json.load(f)
             self.results['overall_precision'] = data['totals']['percent_covered']
             self.results['branch_coverage'] = data['totals']['covered_branches']
