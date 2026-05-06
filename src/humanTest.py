@@ -4,25 +4,35 @@ import subprocess
 import sys
 from pathlib import Path
 
+from cognitive_complexity.api import get_cognitive_complexity
 from radon.complexity import cc_visit
+
 
 class HumanTrackEvaluator:
     def __init__(self, repo_path, source_dir, report_path=None):
         self.repo_path = repo_path
-        self.source_dir = source_dir # e.g., 'loguru/'
+        self.source_dir = source_dir
         self.results = {}
-        self.report_path = f'{report_path}_coverage.json' if report_path else f"{self.source_dir}_coverage.json"
+        self.report_path = (
+            f"{report_path}_coverage.json" if report_path else f"{self.source_dir}_coverage.json"
+        )
 
     def run_coverage_analysis(self):
         """Runs human tests and captures branch coverage."""
+        if self.report_path and os.path.exists(self.report_path):
+            print("Coverage report already exists, skipping analysis.")
+            with open(self.report_path, encoding="utf-8") as f:
+                data = json.load(f)
+                self.results["overall_precision"] = data["totals"]["percent_covered"]
+                self.results["branch_coverage"] = data["totals"]["covered_branches"]
+            return
+
         print(f"--- Running Coverage.py on {self.repo_path} ---")
 
         env = os.environ.copy()
         src_parent = str(Path(self.source_dir).resolve().parent)
         env["PYTHONPATH"] = src_parent + os.pathsep + env.get("PYTHONPATH", "")
 
-        # 1. Run pytest under coverage (same interpreter as this script — PATH may point at another Python)
-        # --branch is critical for your dual-track comparison
         cmd = [
             sys.executable,
             "-m",
@@ -36,7 +46,6 @@ class HumanTrackEvaluator:
         ]
         subprocess.run(cmd, check=True, env=env)
 
-        # 2. Export report to JSON for easy parsing
         subprocess.run(
             [sys.executable, "-m", "coverage", "json", "-o", self.report_path],
             check=True,
@@ -44,33 +53,37 @@ class HumanTrackEvaluator:
         )
 
         print(f"--- Coverage JSON: {self.report_path} ---")
-
-        with open(self.report_path) as f:
+        with open(self.report_path, encoding="utf-8") as f:
             data = json.load(f)
-            self.results['overall_precision'] = data['totals']['percent_covered']
-            self.results['branch_coverage'] = data['totals']['covered_branches']
-            
+            self.results["overall_precision"] = data["totals"]["percent_covered"]
+            self.results["branch_coverage"] = data["totals"]["covered_branches"]
+
     def run_complexity_analysis(self):
-        """Measures Cyclomatic Complexity of the human-authored tests."""
-        print("--- Running Radon Static Analysis ---")
-        test_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.repo_path) 
-                      for f in filenames if f.startswith('test_') and f.endswith('.py')]
-        
-        complexities = []
+        """Measures both Cyclomatic and Cognitive Complexity of the tests."""
+        print("--- Running Radon & Cognitive Static Analysis ---")
+        test_files = [
+            os.path.join(dp, f)
+            for dp, _, filenames in os.walk(self.repo_path)
+            for f in filenames
+            if f.startswith("test_") and f.endswith(".py")
+        ]
+
+        cc_scores = []
+        cog_scores = []
+
         for file in test_files:
-            with open(file, 'r') as f:
+            with open(file, "r", encoding="utf-8") as f:
                 code = f.read()
-                results = cc_visit(code)
-                for item in results:
-                    complexities.append(item.complexity)
-        
-        self.results['avg_test_complexity'] = sum(complexities) / len(complexities) if complexities else 0
+                for item in cc_visit(code):
+                    cc_scores.append(item.complexity)
+                cog_scores.append(get_cognitive_complexity(code))
+
+        self.results["avg_cyclomatic_complexity"] = (
+            sum(cc_scores) / len(cc_scores) if cc_scores else 0
+        )
+        self.results["avg_cognitive_complexity"] = (
+            sum(cog_scores) / len(cog_scores) if cog_scores else 0
+        )
 
     def get_report(self):
         return self.results
-
-# Example Usage for your study
-# evaluator = HumanTrackEvaluator(repo_path='loguru/tests', source_dir='loguru')
-# evaluator.run_coverage_analysis()
-# evaluator.run_complexity_analysis()
-# print(evaluator.get_report())
