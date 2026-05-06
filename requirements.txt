@@ -2,7 +2,14 @@
 coverage[toml]>=7.4.0
 pytest>=8.0.0
 pytest-cov>=4.1.0
+requests-mock[fixture]>=1.11.0
 radon>=6.0.0
+
+# Vendored loguru on Windows imports this when tests import the package tree
+win32-setctime>=1.0.0; sys_platform == "win32"
 
 # LLM track (OpenAI-compatible APIs)
 openai>=1.40.0
+
+# validators: eth_address() requires a keccak backend
+eth-hash[pycryptodome]>=0.5.0

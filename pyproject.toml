@@ -1,6 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "testsuites/monkeytype", "testsuites/tenacity", "testsuites/validators"]
 addopts = "-ra"
 
 [tool.coverage.run]

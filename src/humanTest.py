@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 from radon.complexity import cc_visit
@@ -20,9 +21,11 @@ class HumanTrackEvaluator:
         src_parent = str(Path(self.source_dir).resolve().parent)
         env["PYTHONPATH"] = src_parent + os.pathsep + env.get("PYTHONPATH", "")
 
-        # 1. Run pytest under coverage
+        # 1. Run pytest under coverage (same interpreter as this script — PATH may point at another Python)
         # --branch is critical for your dual-track comparison
         cmd = [
+            sys.executable,
+            "-m",
             "coverage",
             "run",
             "--branch",
@@ -34,8 +37,14 @@ class HumanTrackEvaluator:
         subprocess.run(cmd, check=True, env=env)
 
         # 2. Export report to JSON for easy parsing
-        subprocess.run(["coverage", "json", "-o", self.report_path], check=True, env=env)
-        
+        subprocess.run(
+            [sys.executable, "-m", "coverage", "json", "-o", self.report_path],
+            check=True,
+            env=env,
+        )
+
+        print(f"--- Coverage JSON: {self.report_path} ---")
+
         with open(self.report_path) as f:
             data = json.load(f)
             self.results['overall_precision'] = data['totals']['percent_covered']

@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -128,6 +129,8 @@ Requirements:
 - Prefer fast, deterministic tests; avoid network and real filesystem side effects where possible.
 - Name test functions `test_*`.
 - If the API needs temp paths, use `tmp_path` from pytest or `tempfile`.
+- For Loguru / logging tests: **`logger.remove()`** then **`stream = io.StringIO(); logger.add(stream, ...)`** and assert **`stream.getvalue()`**. **Never read `capfd`/`capsys` when logging to ``StringIO``** — nothing is copied to stdout/stderr. (**`capfd` is unreliable with Loguru+Windows anyway.**) For `logger.bind` / `contextualize`, use **`{{extra[field]}}`** in ``format`` when asserting extras. **`retention=`** deletes **old rotated siblings by mtime** when the sink stops — not “sleep until the active file vanishes”; use a stale ``*.log`` sibling + ``os.utime`` + ``logger.remove()`` or document count-based retention correctly.
+- Loguru **`rotation`** (by size): use a **numeric byte limit** (**`rotation=64`**) or a size token ending in **`B`** (**`rotation="512 B"`**, **`rotation="1 MB"`**). **Do not use** **`rotation="1 byte"`** — it fails parsing (looks like broken **duration**, not bytes). Rotated filenames are **`base.<datetime>.log`**, never **`test.log.*`** globs. After rotation, older lines usually live in **renamed rotated files**, not the active ``*.log`` — grep **all** matching files under ``tmp_path`` if needed. **Critical:** with **non-``None``** ``rotation``, **compression and retention run on each rotate**, **not on** ``logger.remove()`` — **never assert** ``test.log.zip`` exists after ``remove()`` in that setup; zipped segments are **`*.log.zip`** with a **timestamp** stem. **Do not** rename ``test.log`` to unrelated names (**``test_old.log``**) and expect **retention** — they **won’t match** retention globs for sink ``test.log``. **Prefer** **`StringIO`** + **`tmp_path`** sanity checks over fragile retention/compression integration tests unless you correctly use **`rotation=None`** plus matching glob patterns (**e.g.** ``base.*.log`` siblings).
 - Start the code block with ```python and end with ```.
 
 Generate one complete test file."""
@@ -145,6 +148,8 @@ Pytest/collection errors (stderr/stdout):
 {pytest_output[:12000]}
 ```
 
+If failures involve Loguru file **retention**/**compression**/`test.log.zip` after ``remove()`` with **rotation**, **delete those tests** or replace with **`StringIO`**/minimal **`tmp_path`** file assertions—do **not** re-introduce broken patterns.
+
 Return the full corrected Python file in one ```python fenced block. No explanation outside the code block."""
 
     def _write_generated_file(self, code: str) -> Path:
@@ -157,7 +162,7 @@ Return the full corrected Python file in one ```python fenced block. No explanat
     def _run_pytest_smoke(self) -> Tuple[int, str]:
         """Run pytest only on the LLM test directory (fast validation)."""
         cmd = [
-            os.environ.get("PYTHON", "python"),
+            sys.executable,
             "-m",
             "pytest",
             str(Path(self.repo_path)),
@@ -243,6 +248,8 @@ Return the full corrected Python file in one ```python fenced block. No explanat
         env["PYTHONPATH"] = src_parent + os.pathsep + env.get("PYTHONPATH", "")
 
         cmd = [
+            sys.executable,
+            "-m",
             "coverage",
             "run",
             "--branch",
@@ -253,7 +260,13 @@ Return the full corrected Python file in one ```python fenced block. No explanat
         ]
         subprocess.run(cmd, check=True, env=env)
 
-        subprocess.run(["coverage", "json", "-o", self.report_path], check=True, env=env)
+        subprocess.run(
+            [sys.executable, "-m", "coverage", "json", "-o", self.report_path],
+            check=True,
+            env=env,
+        )
+
+        print(f"--- Coverage JSON (LLM track): {self.report_path} ---")
 
         with open(self.report_path, encoding="utf-8") as f:
             data = json.load(f)
