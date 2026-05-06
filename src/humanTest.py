@@ -5,6 +5,7 @@ from pathlib import Path
 
 from radon.complexity import cc_visit
 from contextlib import contextmanager
+from cognitive_complexity.api import get_cognitive_complexity
 
 @contextmanager
 def change_dir(destination):
@@ -45,7 +46,6 @@ class HumanTrackEvaluator:
             # --override-ini: Ensures we don't inherit problematic settings from tox.ini/pytest.ini
             cmd = [
                 "coverage", "run", "--branch", 
-                # "-q",
                 f"--source={self.source_dir}", 
                 "-m", "pytest", 
                 "tests", # Use relative path since we are now inside repo_root
@@ -65,20 +65,32 @@ class HumanTrackEvaluator:
             subprocess.run(["coverage", "json", "-o", report_abs_path], check=True)
                 
     def run_complexity_analysis(self):
-        """Measures Cyclomatic Complexity of the human-authored tests."""
-        print("--- Running Radon Static Analysis ---")
+        """Measures both Cyclomatic and Cognitive Complexity of the tests."""
+        print("--- Running Radon & Cognitive Static Analysis ---")
         test_files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(self.repo_path) 
-                      for f in filenames if f.startswith('test_') and f.endswith('.py')]
+                    for f in filenames if f.startswith('test_') and f.endswith('.py')]
         
-        complexities = []
+        cc_scores = []
+        cog_scores = []
+
         for file in test_files:
             with open(file, 'r') as f:
                 code = f.read()
+                # 1. Measure Cyclomatic Complexity (McCabe)
                 results = cc_visit(code)
                 for item in results:
-                    complexities.append(item.complexity)
+                    cc_scores.append(item.complexity)
+                
+                # 2. Measure Cognitive Complexity (Human-centric)
+                # This calculates the complexity for the entire file content
+                cog_scores.append(get_cognitive_complexity(code))
         
-        self.results['avg_test_complexity'] = sum(complexities) / len(complexities) if complexities else 0
+        # Aggregate results
+        self.results['avg_cyclomatic_complexity'] = sum(cc_scores) / len(cc_scores) if cc_scores else 0
+        self.results['avg_cognitive_complexity'] = sum(cog_scores) / len(cog_scores) if cog_scores else 0
+
+def get_report(self):
+    return self.results
 
     def get_report(self):
         return self.results
